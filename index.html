@@ -1,0 +1,3136 @@
+<html>
+<head>
+	<style>
+		.modal-mask {
+			position: fixed;
+			z-index: 9998;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, .5);
+			display: table;
+			transition: opacity .3s ease;
+		}
+
+		.modal-wrapper {
+			display: table-cell;
+			vertical-align: middle;
+		}
+
+		.modal-container {
+			width: 300px;
+			margin: 0px auto;
+			padding: 20px 30px;
+			background-color: #fff;
+			border-radius: 2px;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, .33);
+			transition: all .3s ease;
+			font-family: Helvetica, Arial, sans-serif;
+		}
+
+		.modal-header h3 {
+			margin-top: 0;
+			color: #42b983;
+		}
+
+		.modal-body {
+			margin: 20px 0;
+		}
+
+		.modal-default-button {
+			float: right;
+		}
+
+		/*
+         * The following styles are auto-applied to elements with
+         * transition="modal" when their visibility is toggled
+         * by Vue.js.
+         *
+         * You can easily play with the modal transition by editing
+         * these styles.
+         */
+
+		.modal-enter {
+			opacity: 0;
+		}
+
+		.modal-leave-active {
+			opacity: 0;
+		}
+
+		.modal-enter .modal-container,
+		.modal-leave-active .modal-container {
+			-webkit-transform: scale(1.1);
+			transform: scale(1.1);
+		}
+
+		.cell {
+			margin: 0;
+			padding: 0;
+		}
+		.bullelements {
+			font-size:4rem;
+			color: #bababa;
+		}
+		#plan {
+			margin-top: 30px;
+		}
+
+		#plan table {
+			line-height: 4em;
+			text-align: center;
+			border: 0;
+			vertical-align: baseline;
+			border-collapse: collapse;
+			border-spacing: 0;
+		}
+
+		#plan table tr {
+			margin: 0;
+			padding: 0;
+		}
+		#plan table td {
+			margin: 0;
+			padding: 0;
+			line-height: 35px;
+			width: 40px;
+			font-size: 14px;
+		}
+
+		.cellBullet {
+			font-size:2rem;
+		}
+
+		.positiveCell {
+			color: red;
+		}
+
+		.zeroCell {
+			color: green;
+		}
+
+		.negativeCell {
+			color: blue;
+		}
+
+		.failed {
+			background-color: pink;
+		}
+
+		.borderTop {
+			border-top: 1px solid darkslategray;
+		}
+		.borderLeft {
+			border-left: 1px solid darkslategray;
+		}
+		.borderRight {
+			border-right: 1px solid darkslategray;
+		}
+		.borderBottom {
+			border-bottom: 1px solid darkslategray;
+		}
+
+	</style>
+</head>
+<body>
+	<main>
+		<!-- template for the modal component -->
+		<script type="text/x-template" id="modal-template">
+			<transition name="modal">
+				<div class="modal-mask">
+					<div class="modal-wrapper">
+						<div class="modal-container">
+
+							<form @submit.prevent="$emit('save', x, y, value)">
+
+							<div class="modal-header">
+								<slot name="header">Значение отклонения от горизонтали (мм)</slot>
+							</div>
+
+							<div class="modal-body">
+
+								<slot name="body">
+
+										<input id="cellValue" type="text" v-model="value" />
+								</slot>
+
+							</div>
+
+							<div class="modal-header">
+								<slot name="header">Есть ли рядом стены ?</slot>
+							</div>
+
+							<div class="modal-body">
+
+								<slot name="body">
+
+									<table>
+										<tr>
+											<td></td>
+											<td>
+												<input type="checkbox" id="topwall" value="top" v-model="walls">
+												<label for="topwall">Сверху</label>
+											</td>
+											<td></td>
+										</tr>
+										<tr>
+
+											<td>
+												<input type="checkbox" id="leftwall" value="left" v-model="walls">
+												<label for="leftwall">Слева</label>
+											</td>
+											<td></td>
+											<td>
+												<input type="checkbox" id="rightwall" value="right" v-model="walls">
+												<label for="rightwall">Справа</label>
+											</td>
+										</tr>
+										<tr>
+											<td></td>
+											<td>
+												<input type="checkbox" id="bottomwall" value="bottom" v-model="walls">
+												<label for="bottomwall">Снизу</label>
+											</td>
+											<td></td>
+										</tr>
+									</table>
+								</slot>
+
+							</div>
+
+							</form>
+
+							<div class="modal-footer">
+								<slot name="footer">
+									&nbsp;
+									<button class="modal-default-button" @click="$emit('save', x, y, value, walls)">
+										Сохранить
+									</button>
+									<button class="modal-default-button" @click="$emit('close')">
+										Отменить
+									</button>
+								</slot>
+							</div>
+						</div>
+					</div>
+				</div>
+			</transition>
+		</script>
+
+		<!-- template for the modal-data component -->
+		<script type="text/x-template" id="modal-data-template">
+			<transition name="modal">
+				<div class="modal-mask">
+					<div class="modal-wrapper">
+						<div class="modal-container">
+
+							<div class="modal-header">
+								<slot name="header">Данные в JSON</slot>
+							</div>
+
+							<div class="modal-body">
+								<slot name="body">
+									<textarea id="jsonString" v-model="data" disabled v-if="modalMode == 'get'" rows="5" cols="40" />
+									<textarea id="jsonString" v-model="data" v-else rows="5" cols="40" />
+								</slot>
+							</div>
+
+							<div class="modal-footer">
+								<slot name="footer">
+									&nbsp;
+									{{modalMode}}
+									<button v-if="modalMode != 'get'" class="modal-default-button" @click="$emit('save', data)">
+										Сохранить
+									</button>
+									<button class="modal-default-button" @click="$emit('close')">
+										Закрыть
+									</button>
+								</slot>
+							</div>
+						</div>
+					</div>
+				</div>
+			</transition>
+		</script>
+
+		<div id="app">
+			<button class="modal-default-button" v-on:click='getData()'>
+				Получить данные
+			</button>
+			<button class="modal-default-button" v-on:click='loadData()'>
+				Загрузить данные
+			</button>
+		  	<h3>Параметры помещения</h3>
+		  	<form @submit.prevent="submitForm">
+			  	<label for="width">Ширина (мм):</label>
+			  	<input id="width" type="text" v-model="width" />
+			  	<label for="length">Длина (мм):</label>
+			  	<input id="length" type="text" v-model="length" />
+				<label for="step">Шаг контрольной точки (мм):</label>
+			  	<input id="step" type="text" v-model="step" />
+				<br />
+				<label for="diff">Допустимое отклонение на просвет двухметрого правила (мм):</label>
+				<input id="diff" type="text" v-model="diff" />
+			</form>
+			<button v-on:click='calculate()'>
+				Посчитать
+			</button>
+			<br />
+			процент отметок не попадающих в норму: {{failedPercent}}<br />
+			нижняя отметка: {{minMax.min}} мм<br />
+			наивысшая точка: {{minMax.max}} мм<br />
+			перепад на всей площади: {{Math.abs(minMax.max - minMax.min)}} мм
+
+		 	 <div id="plan">
+				 <table>
+					 <tr v-for="y in length/step" class="row">
+						 <td v-for="x in width/step" v-bind:class="{ failed: failedOrNot(y-1, x-1), borderTop: walls[y-1]!= null && walls[y-1][x-1] != null && walls[y-1][x-1].top, borderRight: walls[y-1]!= null && walls[y-1][x-1] != null && walls[y-1][x-1].right, borderBottom: walls[y-1]!= null && walls[y-1][x-1] != null && walls[y-1][x-1].bottom, borderLeft: walls[y-1]!= null && walls[y-1][x-1] != null && walls[y-1][x-1].left }">
+							 <a class="cell bullelements" v-on:click='onClick(x, y)' v-if="slots[y-1] == undefined || slots[y-1][x-1] == undefined || parseFloat(slots[y-1][x-1]) != slots[y-1][x-1]">&bull;</a>
+							 <a class="cell" v-on:click='onClick(x, y)' v-bind:class="{ positiveCell: slots[y-1][x-1] > 0, zeroCell: slots[y-1][x-1] == 0, negativeCell: slots[y-1][x-1] < 0 }" v-else> <span class="cellBullet">&bull;</span><span v-if="parseFloat(slots[y-1][x-1]) > 0">+</span>{{ slots[y-1][x-1].toFixed(1) }}</a>
+						 </td>
+					 </tr>
+				 </table>
+			 </div>
+
+			<modal v-if="showModal" v-bind:value="selectedCell.value" v-bind:x="selectedCell.x" v-bind:y="selectedCell.y" v-bind:walls="selectedCell.walls" @save="changeCell" @close="showModal = false"></modal>
+			<modal-data v-if="dataModalMode" v-bind:modalMode="dataModalMode" v-bind:data="JSON.stringify(jsonObject)" @save="reverseJSON" @close="dataModalMode = false" /></modal-data>
+		</div>
+	</main>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.3/vue.min.js"></script>
+	<script>
+
+        function isFloat(n) {
+            return parseFloat(n) === n;
+        }
+
+        Vue.component('modal', {
+            template: '#modal-template',
+            props: ['value', 'x', 'y', 'walls']
+        });
+
+        Vue.component('modal-data', {
+            template: '#modal-data-template',
+            props: ['modalMode', 'data']
+        });
+
+		let vm = new Vue({
+            el: '#app',
+            data: {
+                length: 11500,
+                width: 12000,
+                step: 250,
+                diff: 3,
+                slots: [[null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -5, null, -4.5, null, -7.5, null, -7, null, -4, null, -5, null, -4.5, null, -8, null, -8, null, -9, null, -9.5, null, -10, null, -10, null, -12, null, null, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -3, null, -0.5, null, -2, null, -3, null, -3.5, null, -2.5, null, -1, null, -5, null, -6.5, null, -4, null, -6.5, null, -6, null, -8.5, null, -9, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, -2.5, null, -0.5, null, -1, null, -2, null, -3, null, -3, null, -2.5, null, -5, null, -10, null, -6.5, null, -3.5, null, -4.5, null, -3.5, null, -7, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, -3.5, null, -3.5, null, -3, null, -4.5, null, -2, null, -4, null, -1.5, null, -4.5, null, -4.5, null, -5, null, -5, null, -3, null, -2, null, -5, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, -3, null, -2.5, null, -4, null, -6, null, -2.5, null, -3.5, null, -1, null, -0.5, null, -4, null, -5, null, -6, null, -3, null, -6.5, null, -7.5, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, -4, null, -3, null, -3.5, null, -2.5, null, -1, null, -1, null, -1.5, null, -0.5, null, 0, null, -2.5, null, -2.5, null, -4.5, null, -7.5, null, -7, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, -5, null, -3.5, null, -5, null, -3, null, -3.5, null, -1, null, -1.5, null, 0, null, 0, null, -2, null, -3, null, -4.5, null, -7, null, -9, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, -2, null, -2.5, null, -4.5, null, -3, null, -3, null, -0.5, null, 0, null, -1, null, 1, null, -1, null, -3, null, -6, null, -6, null, -9, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, null, null, "w", null, "w", null, "w", null, null, null, 0, null, 0, null, 0, null, 1, null, -1, null, -4, null, -6.5, null, -4.5, null, -5, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -9, "w", -3, "w", -10, "w", null, -3, null, -3.5, null, -0.5, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, null, null, "w", null, "w", null, null, null, "w", null, "w", null, "w", null, 0, null, 0.5, null, 1, null, -2, null, -3, null, -4, null, -5, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -6, "w", -3, "w", -7, "w", null, -4, null, -3.5, null, 1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, null, null, null, null, null, null, null, null, "w", null, "w", null, "w", null, 0, null, -1, null, 1, null, 0, null, -1, null, -4, null, -4.5, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -5, "w", -4, "w", -6.5, "w", null, -3.5, null, -3.5, null, 1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, null, null, null, null, null, null, null, null, "w", null, "w", null, "w", null, 3.5, null, 2, "w", -0.5, null, -3, "w", -3, null, -3, null, 2, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -5.5, "w", -3, "w", -4, "w", null, -4, null, -1, null, 1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, null, null, null, null, null, null, null, null, "w", null, "w", null, "w", null, 3, null, 3, null, 0.5, null, 0.5, null, -3, null, 3, null, 3, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -5, "w", -4, "w", -2, "w", -2, "w", null, -3, null, -1, null, 0.5, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, "w", null, null, "w", null, null, "w", null, null, "w", null, "w", null, "w", null, 2, null, 2, null, 4, null, 1, null, 1, null, -1, null, 1.5, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 0, "w", -3, "w", -5, "w", -3, "w", null, -1.5, null, -1.5, null, -0.5, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, null, null, null, null, null, "w", null, null, "w", null, 0.5, "w", 0, "w", 0.5, null, 4, null, 2.5, null, -1.5, null, 0.5, null, -2.5, null, 0, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -3, "w", -6, "w", -4, "w", 0, "w", 1, "w", 0.5, "w", -0.5, "w", null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, null, null, null, null, null, null, null, null, null, null, "w", null, "w", -2, -1.5, null, -2, null, -1.5, null, -1.5, null, -3, null, -4, null, -10, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -1, null, -2, null, -3.5, null, -1, null, -0.5, null, -1, null, -1.5, -1, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, 0, null, "w", null, "w", null, "w", null, "w", null, "w", null, "w", null, "w", -0.5, -1, null, -0.5, null, -0.5, null, -4, null, -2, null, -5, null, -12, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -1.5, null, -6, null, -4, null, 0, null, -2, null, -1.5, null, -1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, null, null, 0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "w", null, "w", null, "w", null, "w", null, "w", null, "w", null, "w", null, 0.5, null, -2.5, null, -1, null, -3, null, -5, null, -7, null, -11, null], [null, "w", -2, null, -3, null, -1, null, -3, null, -1, null, -3.5, null, -3, null, null, null, null, null, null, -5, null, -4, null, -4, null, -4, null, -2, null, -3, null, -4, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null, null, null, null, null, "w", null, null, null, null, null, null, null, null, "w", null, "w", null, "w", null, "w", null, "w", null, "w", null, "w", null, -3, null, -4, null, 0, null, -2, null, -7.5, null, -13, null, -13, null], [null, 0, -1, null, -1, null, -2, null, -0.5, null, -1, null, -1, null, 0, null, null, null, null, null, null, -4, null, -3, null, -3, null, -6, null, -3, null, -2, null, -1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, "w", null, null, null, null, null, null, null, null, null, null, "w", null, null, null, null, null, null, null, null, null, -3.5, null, -2.5, null, -1.5, null, -3, null, -4.5, null, -9, null, -14, null], [null, 0, -0.5, null, -1, null, -1, null, 0, null, 0, null, 0, null, 0, null, null, null, null, null, null, -7, null, -5, null, -4, null, -6, null, -7, null, -3, null, -3, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, "w", null, null, null, null, null, null, "w", null, null, null, null, null, null, null, null, null, null, null, null, null, -4.5, null, -4, null, -1, null, -1.5, null, -5, null, -10, null, -10, null], [null, 2, 2, null, 0, null, -1, null, -1, null, -1, null, 0, null, 2, null, null, null, null, null, null, -4, null, -3, null, -2, null, 0, null, -8, null, -3, null, -5, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, null, null, null, null, null, null, null, null, null, "w", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, -6, null, -5, null, -4.5, null, -3, null, -4, null, -6, null, -8, null], [null, 0.5, 0, null, -1, null, 0, null, 1, null, 0, null, 0.5, null, 1, null, null, null, null, null, null, -5, null, -5, null, -8, "w", -4, null, -5, null, -5, null, -10, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [], [null, -0.5, 0, null, 0, null, 1, null, 2, null, 2, null, 2, null, 1], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "w", null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]],
+                walls: [[null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {
+                    "left": false,
+                    "top": true,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": true, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": true, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": true
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": true}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, null, null, null, null, null, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": true, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": true, "top": true, "right": false, "bottom": true}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": true,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": true, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": true, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": true, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": true, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": true
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": true, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": true, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": true, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": true, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": true, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": true
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, null, null, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": true, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": true,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": true, "right": true, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, {"left": false, "top": false, "right": true, "bottom": false}, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {"left": true, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": true, "bottom": false}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, {"left": true, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": true, "bottom": true}, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {"left": false, "top": false, "right": false, "bottom": false}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, null, {"left": false, "top": false, "right": false, "bottom": false}, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": true
+                }, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], [null, {
+                    "left": true,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": false
+                }, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }], [null, {"left": true, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": true
+                }, {"left": false, "top": false, "right": false, "bottom": true}, {
+                    "left": false,
+                    "top": false,
+                    "right": true,
+                    "bottom": true
+                }], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, {
+                    "left": false,
+                    "top": false,
+                    "right": false,
+                    "bottom": false
+                }, null], [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]],
+                selectedCell: {
+                    x: 0,
+                    y: 0,
+                    value: 0,
+                    walls: []
+                },
+                showModal: false,
+                dataModalMode: false,
+                markedSlots: [],
+                colorizedSlots: []
+            },
+            computed: {
+                jsonObject: function () {
+                    return {
+                        length: this.length,
+                        width: this.width,
+                        step: this.step,
+                        diff: this.diff,
+                        slots: this.slots,
+                        walls: this.walls
+                    };
+                },
+                failedPercent: function () {
+
+                    allSlots = 0;
+                    failedSlots = 0;
+                    for (let i = 0; i < this.length / this.step; i++) {
+                        for (let j = 0; j < this.width / this.step; j++) {
+                            if (this.slots[i] && isFloat(this.slots[i][j])) {
+                                allSlots++;
+                                if (this.failedOrNot(i, j)) {
+                                    failedSlots++;
+                                }
+                            }
+                        }
+                    }
+                    return (failedSlots / allSlots * 100).toFixed(2) + '%';
+                },
+                minMax: function () {
+
+                    min = 1000;
+                    max = -1000;
+                    for (let i = 0; i < this.length / this.step; i++) {
+                        for (let j = 0; j < this.width / this.step; j++) {
+                            if (this.slots[i] && isFloat(this.slots[i][j])) {
+                                if (min > this.slots[i][j]) min = this.slots[i][j];
+                                if (max < this.slots[i][j]) max = this.slots[i][j];
+                            }
+                        }
+                    }
+                    return {min: min, max: max};
+                }
+            },
+            methods: {
+                failedOrNot: function (y, x) {
+                    return this.colorizedSlots.length > 0 && this.colorizedSlots[y][x];
+                    return this.markedSlots.length > 0 && this.markedSlots[y][x] - this.diff > 0;
+                },
+                submitForm: function () {
+                    alert(this.length);
+                },
+                onClick: function (x, y) {
+                    this.selectedCell.x = x;
+                    this.selectedCell.y = y;
+                    this.selectedCell.value = (this.slots[y - 1] != undefined) ? (this.slots[y - 1][x - 1] != undefined) ? this.slots[y - 1][x - 1] : '' : '';
+                    this.selectedCell.walls = [];
+                    if (this.walls[y - 1] == undefined) {
+                        this.walls[y - 1] = [];
+                    }
+                    if (this.walls[y - 1][x - 1] == undefined || this.walls[y - 1][x - 1] == null) {
+                        this.walls[y - 1][x - 1] = {
+                            left: false,
+                            top: false,
+                            right: false,
+                            bottom: false
+                        };
+                    }
+                    if (this.walls[y - 1][x - 1].top) {
+                        this.selectedCell.walls.push('top');
+                    }
+                    if (this.walls[y - 1][x - 1].bottom) {
+                        this.selectedCell.walls.push('bottom');
+                    }
+                    if (this.walls[y - 1][x - 1].left) {
+                        this.selectedCell.walls.push('left');
+                    }
+                    if (this.walls[y - 1][x - 1].right) {
+                        this.selectedCell.walls.push('right');
+                    }
+                    this.showModal = true;
+                },
+                changeCell: function (x, y, value, walls) {
+
+                    if (this.slots[y - 1] == undefined) {
+                        this.slots[y - 1] = [];
+                    }
+
+                    if (this.walls[y - 1] == undefined) {
+                        this.walls[y - 1] = [];
+                    }
+
+                    if (typeof value == 'string') {
+                        value = value.replace(',', '.');
+                    }
+
+                    if (value) {
+                        this.slots[y - 1][x - 1] = parseFloat(value);
+                        if (this.slots[y - 1][x - 1] != value) {
+                            this.slots[y - 1][x - 1] = 'w';
+                        }
+                    }
+
+
+                    this.walls[y - 1][x - 1] = {
+                        left: false,
+                        top: false,
+                        right: false,
+                        bottom: false
+                    };
+
+                    for (wall in walls) {
+                        this.walls[y - 1][x - 1][walls[wall]] = true;
+                    }
+
+                    this.showModal = false;
+                },
+                reverseJSON: function (data) {
+                    data = JSON.parse(data);
+
+                    if (data.length != undefined) {
+                        this.length = data.length;
+                    }
+
+                    if (data.width != undefined) {
+                        this.width = data.width;
+                    }
+
+                    if (data.step != undefined) {
+                        this.step = data.step;
+                    }
+
+                    if (data.slots != undefined) {
+                        this.slots = data.slots;
+                    }
+
+                    if (data.walls != undefined) {
+                        this.walls = data.walls;
+                    }
+
+                    if (data.diff != undefined) {
+                        this.diff = data.diff;
+                    }
+
+                    this.dataModalMode = false;
+                },
+                getData: function () {
+                    this.dataModalMode = 'get';
+                },
+                loadData: function () {
+                    this.dataModalMode = 'load';
+                },
+                calculate: function () {
+
+                    this.markedSlots = Array(this.length / this.step);
+                    this.colorizedSlots = Array(this.length / this.step);
+                    for (let i = 0; i <= this.markedSlots.length; i++) {
+                        this.markedSlots[i] = Array(this.width / this.step).fill(0);
+                        this.colorizedSlots[i] = Array(this.width / this.step).fill(false);
+                    }
+                    checkSlot = (y, x) => {
+                        let delta = 0;
+
+                        for (let i = 1; i <= 7; i++) {
+                            if ((i != 0) && i * this.step <= 2000) {
+
+                                if (
+									(!this.walls[y + i - 1] || !this.walls[y + i - 1][x] || !this.walls[y + i - 1][x].bottom ) &&
+                                    (!this.walls[y + i] || !this.walls[y + i][x] || !this.walls[y + i][x].top)
+								) {
+                                    delta = Math.abs(this.slots[y + i][x] - this.slots[y][x]);
+
+                                    if (delta > this.markedSlots[y + i][x]) {
+                                        this.markedSlots[y + i][x] = delta;
+                                    }
+
+                                    if (delta > this.markedSlots[y][x]) {
+                                        this.markedSlots[y][x] = delta;
+                                    }
+
+                                    if (delta > this.diff) {
+                                        let j = i;
+                                        while (j >= 0) {
+                                            this.colorizedSlots[y + j][x] = true;
+                                            j--;
+                                        }
+                                    }
+
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+
+                        for (let i = 1; i <= 7; i++) {
+                            if ((i != 0) && i * this.step <= 2000) {
+
+                                if (
+                                    (!this.walls[y + i - 1] || !this.walls[y + i - 1][x + i - 1] || (!this.walls[y + i - 1][x + i - 1].bottom && !this.walls[y + i - 1][x + i - 1].right)) &&
+                                    (!this.walls[y + i] || !this.walls[y + i][x + i] || (!this.walls[y + i][x + i].left && !this.walls[y + i][x + i].top))
+                                ) {
+                                    delta = Math.abs(this.slots[y + i][x + i] - this.slots[y][x]);
+
+                                    if (delta > this.markedSlots[y + i][x + i]) {
+                                        this.markedSlots[y + i][x + i] = delta;
+                                    }
+
+                                    if (delta > this.markedSlots[y][x]) {
+                                        this.markedSlots[y][x] = delta;
+                                    }
+
+                                    if (delta > this.diff) {
+                                        let j = i;
+                                        while (j >= 0) {
+                                            this.colorizedSlots[y + j][x + j] = true;
+                                            j--;
+                                        }
+                                    }
+
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+
+                        for (let i = 1; i <= 7; i++) {
+                            if ((i != 0) && i * this.step <= 2000) {
+
+                                if (
+                                    (!this.walls[y] || !this.walls[y][x + i - 1] || !this.walls[y][x + i - 1].right) &&
+                                    (!this.walls[y] || !this.walls[y][x + i] ||  !this.walls[y][x + i].left)
+								) {
+                                    delta = Math.abs(this.slots[y][x + i] - this.slots[y][x]);
+
+                                    if (delta > this.markedSlots[y][x + 1]) {
+                                        this.markedSlots[y][x + 1] = delta;
+                                    }
+
+                                    if (delta > this.markedSlots[y][x]) {
+                                        this.markedSlots[y][x] = delta;
+                                    }
+
+                                    if (delta > this.diff) {
+                                        let j = i;
+                                        while (j >= 0) {
+                                            this.colorizedSlots[y][x + j] = true;
+                                            j--;
+                                        }
+                                    }
+
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+
+                        for (let i = 1; i <= 7; i++) {
+                            if ((i != 0) && i * this.step <= 2000) {
+
+                                if (
+                                    (!this.walls[y - i + 1] || !this.walls[y - i + 1][x + i - 1] || (!this.walls[y - i + 1][x + i - 1].top && !this.walls[y - i + 1][x + i - 1].right)) &&
+                                    (!this.walls[y - i] || !this.walls[y - i][x + i] || (!this.walls[y - i][x + i].left && !this.walls[y - i][x + i].bottom))
+                                ) {
+                                    delta = Math.abs(this.slots[y - i][x + i] - this.slots[y][x]);
+
+                                    if (delta > this.markedSlots[y - i][x + i]) {
+                                        this.markedSlots[y - i][x + i] = delta;
+                                    }
+
+                                    if (delta > this.markedSlots[y][x]) {
+                                        this.markedSlots[y][x] = delta;
+                                    }
+
+                                    if (delta > this.diff) {
+                                        let j = i;
+                                        while (j >= 0) {
+                                            this.colorizedSlots[y - j][x + j] = true;
+                                            j--;
+                                        }
+                                    }
+
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+
+                        //    loop2:
+                        // 	for (let i = 0; i <= 8; i++) {
+                        // 	    loop1:
+                        //        for (let j = 0; j <= 8; j++) {
+                        //
+                        // 			if ((i != 0 || j != 0) && Math.abs(i*j*Math.pow(this.step, 2)) <= 2000000) {
+                        //                if (
+                        //                    this.slots[y + j] != undefined &&
+                        //                    (j == 0 || !this.walls[y + j - 1] || !this.walls[y + j - 1][x + i] || (!this.walls[y + j - 1][x + i].bottom && !this.walls[y + j][x + i].top))
+                        // 				) {
+                        //
+                        //                    if (
+                        //                        (i == 0 || !this.walls[y + j][x + i - 1] || (!this.walls[y + j][x + i - 1].right && !this.walls[y + j][x + i].left))
+                        // 					) {
+                        //                        delta = Math.abs(this.slots[y][x] - this.slots[y + j][x + i]);
+                        //
+                        //                        if (delta > this.markedSlots[y][x]) {
+                        //                            this.markedSlots[y][x] = delta;
+                        //                        }
+                        //
+                        //                        if (delta > this.markedSlots[y + j][x + i]) {
+                        //                            this.markedSlots[y + j][x + i] = delta;
+                        //                        }
+                        // 					} else {
+                        //                        break loop2;
+                        // 					}
+                        //
+                        //
+                        //                } else {
+                        //                    break loop1;
+                        // 				}
+                        //            }
+                        //        }
+                        // 	}
+                        //
+                        //    loop4:
+                        // 	for (let i = 0; i <= 8; i++) {
+                        // 		loop3:
+                        // 		for (let j = 0; j <= 8; j++) {
+                        //
+                        // 			if ((i != 0 || j != 0) && Math.abs(i*j*Math.pow(this.step, 2)) <= 2000000) {
+                        // 				if (
+                        // 					this.slots[y - j] != undefined &&
+                        // 					(j == 0 || !this.walls[y - j + 1] || !this.walls[y - j + 1][x + i] || (!this.walls[y - j + 1][x + i].top && !this.walls[y - j][x + i].bottom))
+                        // 				) {
+                        //
+                        // 					if (
+                        // 						(i == 0 || !this.walls[y - j][x + i - 1] || (!this.walls[y - j][x + i - 1].right && !this.walls[y - j][x + i].left))
+                        // 					) {
+                        // 						delta = Math.abs(this.slots[y][x] - this.slots[y - j][x + i]);
+                        //
+                        // 						if (delta > this.markedSlots[y][x]) {
+                        // 							this.markedSlots[y][x] = delta;
+                        // 						}
+                        //
+                        // 						if (delta > this.markedSlots[y - j][x + i]) {
+                        // 							this.markedSlots[y - j][x + i] = delta;
+                        // 						}
+                        // 					} else {
+                        // 						break loop4;
+                        // 					}
+                        //
+                        //
+                        // 				} else {
+                        // 					break loop3;
+                        // 				}
+                        // 			}
+                        // 		}
+                        // 	}
+                        //
+                    }
+                    for (let i = 0; i < this.length / this.step; i++) {
+                        for (let j = 0; j < this.width / this.step; j++) {
+                            if (
+                                this.slots[i] != undefined &&
+                                this.slots[i][j] != undefined &&
+                                this.slots[i][j] === parseFloat(this.slots[i][j])
+                            ) {
+                                checkSlot(i, j);
+                            }
+                        }
+                    }
+                    console.log(this.colorizedSlots);
+                }
+            }
+        });
+
+	</script>
+</body>
+</html>
