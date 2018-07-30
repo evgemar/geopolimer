@@ -2913,7 +2913,7 @@
 
                     this.markedSlots = Array(this.length / this.step);
                     this.colorizedSlots = Array(this.length / this.step);
-                    for (let i = 0; i <= this.markedSlots.length; i++) {
+                    for (let i = 0; i < this.markedSlots.length; i++) {
                         this.markedSlots[i] = Array(this.width / this.step).fill(0);
                         this.colorizedSlots[i] = Array(this.width / this.step).fill(false);
                     }
@@ -3126,7 +3126,6 @@
                             }
                         }
                     }
-                    console.log(this.colorizedSlots);
                 }
             }
         });
