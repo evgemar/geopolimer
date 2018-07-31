@@ -376,6 +376,12 @@
                     return {min: min, max: max};
                 }
             },
+            mounted: function()
+            {
+                this.$nextTick(function () {
+                    this.calculate();
+                });
+            },
             methods: {
                 failedOrNot: function (y, x) {
                     return this.colorizedSlots.length > 0 && this.colorizedSlots[y][x];
@@ -484,7 +490,7 @@
                 loadData: function () {
                     this.dataModalMode = 'load';
                 },
-                calculate: async function () {
+                calculate: function () {
 
 					this.markedSlots = Array(this.length / this.step + 1);
                     this.colorizedSlots = Array(this.length / this.step + 1);
@@ -494,7 +500,7 @@
                             this.colorizedSlots[i] = Array(this.width / this.step + 1).fill(false);
                         }
                     };
-					await init();
+					init();
 
                     checkSlot = (y, x) => {
                         let delta = 0;
@@ -701,7 +707,7 @@
                                 this.slots[i][j] != undefined &&
                                 this.slots[i][j] === parseFloat(this.slots[i][j])
                             ) {
-                                await checkSlot(i, j);
+                                checkSlot(i, j);
                             }
                         }
                     }
@@ -711,6 +717,7 @@
                 }
             }
         });
+		vm.calculate();
 
 	</script>
 </body>
